@@ -75,16 +75,6 @@
                 "type": "string",
                 "operation": "contains"
               }
-            },
-            {
-              "id": "01de94aa-adf6-4e85-bd2d-c2b385c53c7d",
-              "leftValue": "",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
-              }
             }
           ],
           "combinator": "and"
@@ -133,7 +123,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "16eXNQ3yZEzJHtYzvQKDTEOXdhPDUvIA5JDYHFf5IMbU",
+          "value": "YOUR_SHEET_ID",
           "mode": "id"
         },
         "sheetName": {
@@ -154,7 +144,12 @@
             "Budget": "={{ $('Webhook').item.json.body.budget }}",
             "Timeline": "={{ $('Webhook').item.json.body.timeline }}",
             "Priority": "={{ $json.priority }}",
-            "Business Type": "={{ $('Webhook').item.json.body.business_type }}"
+            "Business Type": "={{ $('Webhook').item.json.body.business_type }}",
+            "Lead Score": "={{ $json.lead_score }}",
+            "Qualification": "={{ $json.qualification }}",
+            "Business Need": "={{ $json.business_need }}",
+            "Recommended Action": "={{ $json.recommended_action }}",
+            "AI Reason": "={{ $json.ai_reason }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -267,6 +262,56 @@
               "type": "string",
               "canBeUsedToMatch": true,
               "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Qualification",
+              "displayName": "Qualification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Business Need",
+              "displayName": "Business Need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recommended Action",
+              "displayName": "Recommended Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI Reason",
+              "displayName": "AI Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -284,7 +329,7 @@
       "name": "Append row in sheet",
       "credentials": {
         "googleApi": {
-          "id": "F49w7dsMlBKMtqRk",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Google Service Account account"
         }
       }
@@ -341,10 +386,11 @@
       "webhookId": "ebd623b8-91b7-4d1b-bcae-61dbdc4dcab9",
       "credentials": {
         "gmailOAuth2": {
-          "id": "T5wplwoR63HX9c9q",
-          "name": "Gmail account"
+          "id": "jFBGm7eVmnvRfIjE",
+          "name": "Gmail account 2"
         }
-      }
+      },
+      "disabled": true
     },
     {
       "parameters": {
@@ -416,7 +462,7 @@
       "name": "Log Error",
       "credentials": {
         "googleApi": {
-          "id": "F49w7dsMlBKMtqRk",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Google Service Account account"
         }
       }
@@ -431,13 +477,15 @@
         "messages": {
           "values": [
             {
-              "content": "=You are an AI sales lead qualification assistant.\n\nAnalyze the incoming lead information and return ONLY a valid JSON object.\n\nThe JSON object must contain exactly these fields:\n\"name\",\n\"email\",\n\"company\",\n\"message\",\n\"budget\",\n\"timeline\",\n\"priority\"\n\nPriority rules:\n- Set \"priority\" to \"high\" if the budget is over $20,000.\n- Set \"priority\" to \"high\" if the message indicates an urgent or critical requirement.\n- Otherwise, set \"priority\" to \"low\".\n\nImportant instructions:\n- Return ONLY the JSON object.\n- Do not use Markdown.\n- Do not use ```json.\n- Do not add explanations or any text outside the JSON object.\n- Preserve the original lead information accurately.\n- Do not invent or modify lead information.\n\nLead Data:\n\nName: {{ $json.body.name }}\nEmail: {{ $json.body.email }}\nCompany: {{ $json.body.company }}\nMessage: {{ $json.body.message }}\nBudget: {{ $json.body.budget }}\nTimeline: {{ $json.body.timeline }}"
+              "content": "=You are a lead qualification assistant for a small business.\n\nAnalyze the lead below and respond with ONLY a valid JSON object.\nNo markdown, no code fences, no extra text.\n\nLead:\nName: {{ $json.body.name }}\nEmail: {{ $json.body.email }}\nPhone: Not provided\nMessage: {{ $json.body.message }}\n\nReturn exactly these fields:\n{\n  \"lead_score\": <integer 0-100>,\n  \"qualification\": \"hot\" | \"warm\" | \"cold\",\n  \"priority\": \"high\" | \"medium\" | \"low\",\n  \"business_need\": \"<one sentence, the customer's actual need>\",\n  \"recommended_action\": \"<one concrete next step for the sales owner>\",\n  \"ai_reason\": \"<one or two sentences explaining the score>\"\n}\n\nScoring guide:\n- 70-100 = hot, priority high: clear need, budget or timeline mentioned, contact details given\n- 40-69 = warm, priority medium: some interest, missing details\n- 0-39 = cold, priority low: vague, unrelated, or spam\n\nIf information is missing, say so in ai_reason and do not invent facts."
             }
           ]
         },
         "jsonOutput": true,
         "builtInTools": {},
-        "options": {}
+        "options": {
+          "temperature": 0.2
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1.2,
@@ -451,7 +499,7 @@
       "waitBetweenTries": 2000,
       "credentials": {
         "googlePalmApi": {
-          "id": "Bn9DoiYkwhKOo1of",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Google Gemini(PaLM) Api account 4"
         }
       },
@@ -552,15 +600,15 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "5c7c80e0-701a-468c-a2e8-ddd32fb667d0",
+  "versionId": "a20a6602-a83d-42ec-a6a5-7fa2ee2cda5a",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "d6e87a9f57ed9c9a691ce2bf365958528c847ac69a7562cb290b512a7e581360"
+    "instanceId": "YOUR_INSTANCE_ID"
   },
   "nodeGroups": [],
   "id": "7h1tGWhErM8Isnif",
