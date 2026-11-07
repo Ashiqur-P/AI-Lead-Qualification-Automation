@@ -5,6 +5,8 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "lead-qualification",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
@@ -15,7 +17,13 @@
       ],
       "id": "b05c456e-1d19-49ea-b086-51a599937b82",
       "name": "Webhook",
-      "webhookId": "b6baa0a1-9dd2-4571-b14d-a6fc67665840"
+      "webhookId": "b6baa0a1-9dd2-4571-b14d-a6fc67665840",
+      "credentials": {
+        "httpHeaderAuth": {
+  "id": "REPLACE_WITH_HEADER_AUTH_CREDENTIAL_ID",
+  "name": "Header Auth account"
+}
+      }
     },
     {
       "parameters": {
@@ -92,7 +100,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Gemini থেকে আসা টেক্সটকে আলাদা ফিল্ডে পার্স করা\nconst rawText = $input.item.json.content.parts[0].text;\nreturn JSON.parse(rawText);"
+        "jsCode": "const REQUIRED = [\n  'lead_score',\n  'qualification',\n  'priority',\n  'business_need',\n  'recommended_action',\n  'ai_reason'\n];\n\nconst first = $input.first().json;\n\nlet raw = first.content?.parts?.[0]?.text ?? '';\n\nraw = String(raw)\n  .replace(/```json/gi, '')\n  .replace(/```/g, '')\n  .trim();\n\nconst start = raw.indexOf('{');\nconst end = raw.lastIndexOf('}');\n\nif (start === -1 || end === -1) {\n  throw new Error('AI response contains no JSON object');\n}\n\nlet data;\n\ntry {\n  data = JSON.parse(raw.slice(start, end + 1));\n} catch (error) {\n  throw new Error('AI response is not valid JSON: ' + error.message);\n}\n\nconst missing = REQUIRED.filter(key => !(key in data));\n\nif (missing.length) {\n  throw new Error('Missing AI fields: ' + missing.join(', '));\n}\n\ndata.priority = String(data.priority).toLowerCase();\n\nif (!['high', 'medium', 'low'].includes(data.priority)) {\n  data.priority = 'medium';\n}\n\ndata.qualification = String(data.qualification).toLowerCase();\n\nif (!['hot', 'warm', 'cold'].includes(data.qualification)) {\n  data.qualification = 'warm';\n}\n\ndata.lead_score = Math.max(\n  0,\n  Math.min(100, Number(data.lead_score) || 0)\n);\n\nreturn [{\n  json: {\n    ...$('Webhook').first().json.body,\n    ...data\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -106,7 +114,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var allItems = $input.all();\nfor (var i = 0; i < allItems.length; i++) {\n  var today = new Date();\n  var yyyy = today.getFullYear();\n  var mm = String(today.getMonth() + 1).padStart(2, '0');\n  var dd = String(today.getDate()).padStart(2, '0');\n  var dateStr = yyyy + mm + dd;\n  var randomNum = Math.floor(100 + Math.random() * 900);\n  \n  allItems[i].json.lead_id = 'LEAD-' + dateStr + '-' + randomNum;\n  allItems[i].json.date = today.toLocaleDateString();\n}\nreturn allItems;"
+        "jsCode": "const items = $input.all();\n\nconst execId = $execution.id ?? `test${Date.now()}`;\n\nreturn items.map((item, i) => {\n  const today = new Date();\n\n  const yyyy = today.getFullYear();\n  const mm = String(today.getMonth() + 1).padStart(2, '0');\n  const dd = String(today.getDate()).padStart(2, '0');\n\n  const dateStr = yyyy + mm + dd;\n\n  return {\n    json: {\n      ...item.json,\n      lead_id: `LEAD-${dateStr}-${execId}-${i + 1}`,\n      date: today.toLocaleDateString()\n    }\n  };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -117,15 +125,15 @@
       "id": "9e9a789f-0bdd-4e12-b9f3-75ccf74e7b40",
       "name": "Generate Lead ID"
     },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "value": "YOUR_SHEET_ID",
-          "mode": "id"
-        },
+   {
+  "parameters": {
+    "authentication": "serviceAccount",
+    "operation": "append",
+    "documentId": {
+      "__rl": true,
+      "value": "REPLACE_WITH_GOOGLE_SHEET_ID",
+      "mode": "id"
+    },
         "sheetName": {
           "__rl": true,
           "value": "0",
@@ -329,7 +337,7 @@
       "name": "Append row in sheet",
       "credentials": {
         "googleApi": {
-          "id": "YOUR_CREDENTIAL_ID",
+          "id": "F49w7dsMlBKMtqRk",
           "name": "Google Service Account account"
         }
       }
@@ -369,7 +377,7 @@
     },
     {
       "parameters": {
-        "sendTo": "designlogo1007@gmail.com",
+        "sendTo": "REPLACE_WITH_NOTIFICATION_EMAIL",
         "subject": "=High Priority Lead Received",
         "emailType": "text",
         "message": "=New high-priority lead received.  \nName: {{ $json.Name }} \nCompany: {{ $json.Company }} \nEmail: {{ $json.Email }}  \nLead Score: {{ $json[\"Lead Score\"] }} \nQualification: {{ $json.Qualification }} \nPriority: {{ $json.Priority }}  \nBusiness Need: {{ $json[\"Business Need\"] }}  \nBudget: {{ $json.Budget }}  \nTimeline: {{ $json.Timeline }}  \nRecommended Action: {{ $json[\"Recommended Action\"] }}  \nAI Reason: {{ $json[\"AI Reason\"] }}\n\n\n\n",
@@ -462,7 +470,7 @@
       "name": "Log Error",
       "credentials": {
         "googleApi": {
-          "id": "YOUR_CREDENTIAL_ID",
+          "id": "F49w7dsMlBKMtqRk",
           "name": "Google Service Account account"
         }
       }
@@ -499,11 +507,259 @@
       "waitBetweenTries": 2000,
       "credentials": {
         "googlePalmApi": {
-          "id": "YOUR_CREDENTIAL_ID",
+          "id": "Bn9DoiYkwhKOo1of",
           "name": "Google Gemini(PaLM) Api account 4"
         }
       },
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $('Webhook').first().json.body ?? {};\n\nconst executionId = $execution.id ?? `test${Date.now()}`;\n\nconst today = new Date();\nconst yyyy = today.getFullYear();\nconst mm = String(today.getMonth() + 1).padStart(2, '0');\nconst dd = String(today.getDate()).padStart(2, '0');\nconst dateStr = yyyy + mm + dd;\n\nreturn [\n  {\n    json: {\n      lead_id: `LEAD-${dateStr}-${executionId}-UNSCORED`,\n      date: today.toLocaleDateString(),\n      name: lead.name ?? '',\n      email: lead.email ?? '',\n      company: lead.company ?? '',\n      message: lead.message ?? '',\n      budget: lead.budget ?? '',\n      timeline: lead.timeline ?? '',\n      lead_score: '',\n      qualification: 'unscored',\n      priority: 'medium',\n      business_need: '',\n      recommended_action: 'Review this lead manually',\n      ai_reason: 'AI scoring failed; saved without a score'\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        240
+      ],
+      "id": "eb763759-4229-4207-8087-ee8dadb5933b",
+      "name": "Build Unscored Lead"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "16eXNQ3yZEzJHtYzvQKDTEOXdhPDUvIA5JDYHFf5IMbU",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "0",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead ID": "={{ $json.lead_id }}",
+            "Date": "={{ $json.date }}",
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Company": "={{ $json.company }}",
+            "Website": "={{ $json.website ?? '' }}",
+            "Business Type": "={{ $json.business_type ?? '' }}",
+            "Message": "=\t{{ $json.message }}",
+            "Budget": "={{ $json.budget }}",
+            "Timeline": "=\t{{ $json.timeline }}",
+            "Priority": "={{ $json.priority }}",
+            "Lead Score": "=\t{{ $json.lead_score }}",
+            "Qualification": "={{ $json.qualification }}",
+            "Business Need": "={{ $json.business_need }}",
+            "Recommended Action": "=\t{{ $json.recommended_action }}",
+            "AI Reason": "=\t{{ $json.ai_reason }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Type",
+              "displayName": "Business Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Qualification",
+              "displayName": "Qualification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Need",
+              "displayName": "Business Need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommended Action",
+              "displayName": "Recommended Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Reason",
+              "displayName": "AI Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        992,
+        96
+      ],
+      "id": "d1b3a410-52d3-4908-9d5c-82f2b3c06402",
+      "name": "Save Unscored Lead",
+      "credentials": {
+        "googleApi": {
+          "id": "F49w7dsMlBKMtqRk",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation Failed\",\n  \"message\": \"Name, valid email, company and message are required.\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        368,
+        -32
+      ],
+      "id": "e87541be-e483-4d43-a8e5-5cc4677091d4",
+      "name": "Respond 400 - Validation Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Lead received and processed successfully.\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1728,
+        160
+      ],
+      "id": "0ef35426-5a26-4ebb-850f-f924c1f0ee3c",
+      "name": "Respond 200 - Success"
     }
   ],
   "pinData": {},
@@ -527,6 +783,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond 400 - Validation Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -541,7 +804,7 @@
         ],
         [
           {
-            "node": "Log Error",
+            "node": "Build Unscored Lead",
             "type": "main",
             "index": 0
           }
@@ -578,6 +841,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond 200 - Success",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -592,7 +862,51 @@
         ],
         [
           {
+            "node": "Build Unscored Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Unscored Lead": {
+      "main": [
+        [
+          {
+            "node": "Save Unscored Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Unscored Lead": {
+      "main": [
+        [
+          {
             "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 - Success",
             "type": "main",
             "index": 0
           }
@@ -605,11 +919,10 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "a20a6602-a83d-42ec-a6a5-7fa2ee2cda5a",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "YOUR_INSTANCE_ID"
-  },
+"versionId": "f255ef94-883a-401a-b43a-7fbd6f561c7f",
+"meta": {
+  "templateCredsSetupCompleted": true
+},
   "nodeGroups": [],
   "id": "7h1tGWhErM8Isnif",
   "tags": []
