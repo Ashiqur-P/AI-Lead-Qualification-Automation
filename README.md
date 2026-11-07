@@ -1,81 +1,131 @@
-AI Lead Qualification & Automation
+# AI Lead Qualification & Automation
 
-An AI-powered lead qualification and automation workflow built with n8n and Google Gemini. The system receives lead information through a webhook, validates the input, uses Gemini AI to determine lead priority and score, stores the results in Google Sheets, and supports priority-based routing.
+An AI-powered lead qualification and automation workflow built with **n8n** and **Google Gemini**. The system receives lead information through a secured webhook, validates incoming data, uses Gemini AI to evaluate and classify leads, and stores the results in Google Sheets.
 
-Workflow Layout
+The workflow also includes error handling and an unscored lead fallback to help prevent lead data from being lost when AI processing or JSON parsing fails.
 
-Lead ➔ Webhook ➔ Validation ➔ Google Gemini AI ➔ JSON Parsing ➔ Generate Lead ID ➔ Google Sheets ➔ Priority Check
-                                                                                                  ├── High ➔ Gmail Notification (Optional)
-                                                                                                  ├── Medium ➔ End Workflow
-                                                                                                  └── Low ➔ End Workflow
+## Workflow Layout
 
-Key Features
+```text
+Lead
+  |
+  v
+Webhook (Header Auth)
+  |
+  v
+Input Validation
+  |
+  +---- Invalid Input ----> Respond 400 - Validation Error
+  |
+  v
+Google Gemini AI
+  |
+  +---- AI Error ----------------------+
+  |                                    |
+  v                                    |
+JSON Parsing                           |
+  |                                    |
+  +---- Invalid JSON ------------------+
+  |                                    |
+  v                                    v
+Generate Lead ID                 Build Unscored Lead
+  |                                    |
+  v                                    v
+Google Sheets                    Save Unscored Lead
+  |                                    |
+  v                                    v
+Priority Check                    Log Error
+  |                                    |
+  +---- High                          |
+  |       |                            |
+  |       v                            |
+  |   Gmail Notification              |
+  |   (Deactivated)                   |
+  |       |                            |
+  +---- Medium                         |
+  |       |                            |
+  +---- Low                            |
+          |                            |
+          v                            v
+       Respond 200 - Success <---------+
+```
 
-Webhook-based Lead Intake — Captures incoming leads automatically via webhooks.
+**Note:** High, Medium, Low, and Unscored processing paths currently use the shared `Respond 200 - Success` node. Invalid input uses a separate HTTP 400 response.
 
-Input Validation — Checks data integrity before passing it to the AI.
+## Key Features
 
-AI-powered Lead Qualification — Integrates Google Gemini (models/gemini-3-flash-preview) for lead screening and scoring.
+- **Webhook-based Lead Intake:** Receives incoming lead information through an n8n webhook.
+- **Header Authentication:** Protects the webhook using Header Auth and an API key.
+- **Input Validation:** Checks required fields and basic email validity before AI processing.
+- **AI-powered Lead Qualification:** Uses Google Gemini (`models/gemini-3-flash-preview`) to evaluate incoming leads.
+- **Structured JSON Processing:** Parses and validates the AI-generated JSON response.
+- **Automatic Lead ID Generation:** Generates a unique lead identifier.
+- **Google Sheets Storage:** Stores lead information and qualification results.
+- **Lead Scoring & Classification:** Generates a numerical score and classifies leads as Hot, Warm, or Cold.
+- **Priority-based Routing:** Routes leads according to High, Medium, or Low priority.
+- **Unscored Lead Fallback:** Saves leads for manual review when Gemini processing or JSON parsing fails.
+- **Error Logging:** Records AI or parsing errors through the error-handling path.
+- **HTTP Response Handling:** Returns HTTP 400 for invalid input and HTTP 200 for accepted requests.
 
-Structured JSON Processing — Ensures data is parsed into structured JSON format.
+## AI Qualification Criteria
 
-Automatic Lead ID Generation — Generates unique identifiers for incoming leads.
+Gemini evaluates incoming leads based on the provided budget, timeline, business requirements, and urgency.
 
-Google Sheets Storage — Stores lead information and AI qualification results.
+| AI Classification | Priority | Intended Handling |
+|---|---|---|
+| Hot | High | Save to Google Sheets; optional Gmail notification |
+| Warm | Medium | Save to Google Sheets |
+| Cold | Low | Save to Google Sheets |
 
-Lead Scoring & Classification — Assigns numerical scores and classifies leads as Hot, Warm, or Cold.
+The priority classification is determined by the AI qualification prompt. These classifications are AI-generated suggestions, not deterministic business rules or final sales decisions.
 
-Priority-based Routing — Classifies leads into High, Medium, or Low priority.
+## AI Output & Data Structure
 
-Optional Gmail Notification — Requires Gmail OAuth configuration; currently pending.
+The AI qualification response contains six AI-generated fields:
 
-AI Qualification Criteria
+- `priority`
+- `lead_score`
+- `qualification`
+- `business_need`
+- `recommended_action`
+- `ai_reason`
 
-Gemini evaluates incoming leads based on budget, urgency, and business requirements:
+These fields are combined with the original lead information, such as:
 
-Condition
+- `name`
+- `email`
+- `company`
+- `message`
+- `budget`
+- `timeline`
 
-Assigned Priority
+The normal Google Sheets output contains 16 columns:
 
-Action Taken
+| Field | Description |
+|---|---|
+| Lead ID | Generated unique identifier |
+| Date | Lead processing date |
+| Name | Lead's name |
+| Email | Lead's email address |
+| Company | Company name |
+| Website | Optional website |
+| Business Type | Optional business category |
+| Message | Lead's inquiry |
+| Budget | Stated budget |
+| Timeline | Expected timeline |
+| Priority | High, Medium, or Low |
+| Lead Score | AI-generated numerical score |
+| Qualification | Hot, Warm, or Cold |
+| Business Need | Identified business requirement |
+| Recommended Action | Suggested next action |
+| AI Reason | AI-generated qualification explanation |
 
-High-value or urgent requirement
+**Important:** The Unscored Lead fallback stores the available core lead information and marks the qualification as `unscored`. Optional `website` and `business_type` fields are not currently retained by this fallback path.
 
-High
+### Example AI JSON Result
 
-Stores in Google Sheets + Optional Gmail Notification
-
-Potential business opportunity
-
-Medium
-
-Stores in Google Sheets
-
-Low-potential opportunity
-
-Low
-
-Stores in Google Sheets + Ends Workflow
-
-Note: Priority classification is determined by the AI qualification prompt.
-
-AI outputs can vary. Scores and priorities are suggestions for the sales team, not final decisions.
-
-Expected Output Fields:
-
-The AI returns a structured JSON object containing 12 fields:
-
-name, email, company, message, budget, timeline, priority, lead_score, qualification, business_need, recommended_action, and ai_reason.
-
-Example AI JSON Result:
-
+```json
 {
-  "name": "Ahsan Khan",
-  "email": "test@example.com",
-  "company": "TechInnovate Solutions",
-  "message": "We urgently need an AI customer support chatbot.",
-  "budget": "$50,000 - $100,000",
-  "timeline": "Within 7 days",
   "priority": "high",
   "lead_score": 85,
   "qualification": "hot",
@@ -83,135 +133,183 @@ Example AI JSON Result:
   "recommended_action": "Contact the lead immediately",
   "ai_reason": "High budget and urgent business requirement."
 }
+```
 
-Example data is for demonstration purposes only.
+The example is for demonstration purposes. Actual AI output may vary.
 
-Testing & Verification
+## Error Handling & HTTP Responses
 
-Four lead qualification test cases have passed:
+### 1. Invalid Input
 
-Test Case
+The Validation node checks the required fields:
 
-Result
+- Name
+- Valid email
+- Company
+- Message
 
-High Lead
+Invalid input is rejected with:
 
-Hot / High — PASS
+- HTTP Status: `400 Bad Request`
+- Response message: `Validation Failed`
 
-Warm Lead
+### 2. Authentication Failure
 
-Warm / Medium — PASS
+The webhook uses Header Auth.
 
-Cold Lead
+- Correct API key: Request can proceed to validation.
+- Incorrect or missing API key: Authentication is rejected with HTTP `403 Forbidden`.
 
-Cold / Low — PASS
+### 3. Gemini or JSON Parsing Failure
 
-Bengali Lead
+If Gemini processing fails or the AI response cannot be parsed:
 
-Hot / High — PASS
+1. The lead is routed to the Unscored Lead fallback.
+2. The available lead information is saved to Google Sheets.
+3. The error is recorded through the Log Error node.
+4. The workflow returns through the shared HTTP 200 response node.
+
+The fallback does not assign a normal AI score or qualification.
+
+**Note:** The HTTP 200 response indicates that the request was accepted and handled by the workflow. It does not mean AI qualification was successful. Unscored leads require manual review.
+
+## Testing & Verification
+
+### Day 3 — Lead Qualification Tests
+
+Four lead qualification test cases were completed:
+
+| Test Case | Result |
+|---|---|
+| High Lead | Hot / High — PASS |
+| Warm Lead | Warm / Medium — PASS |
+| Cold Lead | Cold / Low — PASS |
+| Bengali Lead | Hot / High — PASS |
 
 Bengali Lead Verification:
 
-Lead Score: 85
+- Lead Score: 85
+- Qualification: Hot
+- Priority: High
+- Bengali message successfully stored in Google Sheets.
 
-Qualification: Hot
+Detailed results: `test-results/day3-lead-tests.md`
 
-Priority: High
+### Day 4 — Workflow Hardening Tests
 
-Bengali message successfully stored in Google Sheets.
+| Test | Expected Result | Status |
+|---|---|---|
+| Invalid or missing required input | HTTP 400 | PASS |
+| Correct Header Auth API key | HTTP 200 for valid request | PASS |
+| Incorrect Header Auth API key | HTTP 403 | PASS |
+| Gemini API failure | Save lead as unscored | PASS |
+| Invalid AI JSON response | Route to unscored fallback | PASS |
+| Normal AI processing after restoring credentials | Save qualified lead | PASS |
 
-Detailed test results: test-results/day3-lead-tests.md
+Detailed results: `test-results/day4-lead-hardening.md`
 
-Gmail Notification Status
+These tests verify the workflow behavior described above. They do not imply that every possible input or production scenario has been tested.
 
-Gmail notification is currently deactivated because OAuth credentials require configuration. It remains an optional integration and has not yet been verified.
+## Gmail Notification Status
 
-Security Notes
+The High Priority Gmail notification node is currently deactivated because Gmail OAuth configuration is pending.
 
-API keys, OAuth credential IDs, Sheet ID, and instance ID in the exported workflow are replaced with placeholders.
+The node is retained as an optional integration but has not yet been verified.
 
-The webhook currently has no authentication. Header Auth is planned for the next iteration.
+## Security Notes
 
-Use dummy contact information in public test data.
+- The webhook is protected using n8n Header Auth.
+- The API key is stored in n8n credentials and is not included in the exported workflow.
+- The exported workflow uses placeholders for sensitive configuration values, including Google Sheets Document ID, Header Auth credential ID, and notification email.
+- API keys, credential IDs, and other private configuration values must be configured separately after importing the workflow.
+- The webhook URL and API key are not stored in this repository.
+- Use dummy contact information in public test data.
 
-Technology Stack
+Never publish real API keys, credentials, private webhook URLs, or confidential lead information.
 
-n8n — Core workflow automation.
+## Technology Stack
 
-Google Gemini — AI qualification engine (models/gemini-3-flash-preview, Preview model).
+| Technology | Purpose |
+|---|---|
+| n8n | Core workflow automation |
+| Google Gemini | AI qualification and lead scoring |
+| Google Sheets | Lead data storage |
+| Gmail | Optional High Priority notification |
+| Docker | Local n8n server environment |
+| PowerShell / Postman | Webhook and API testing |
 
-Google Sheets — Lead data storage.
+## Project Structure
 
-Gmail — Optional high-priority notifications (OAuth setup pending).
-
-Docker — Local n8n server environment.
-
-PowerShell — Webhook/API testing.
-
-Project Structure
-
+```text
 AI-Lead-Qualification-Automation/
 │
 ├── README.md
 ├── workflow/
 │   └── lead-qualification-workflow.json
+│
 ├── prompts/
 │   └── lead-analysis-prompt.txt
+│
 ├── test-data/
 │   ├── high-priority-lead.json
 │   └── low-priority-lead.json
+│
 ├── test-results/
-│   └── day3-lead-tests.md
+│   ├── day3-lead-tests.md
+│   └── day4-lead-hardening.md
+│
 ├── docs/
 │   ├── architecture.md
 │   └── setup.md
+│
 └── screenshots/
     ├── 01-full-workflow.png
     ├── 02-gemini-ai-qualification.png
     └── 03-google-sheets-results.png
+```
 
 ## Screenshots
 
-### 📊 Full Workflow Layout
+### Full Workflow Layout
+
 ![Full Workflow](screenshots/01-full-workflow.png)
 
-### 🧠 Gemini AI Qualification Setup
+### Gemini AI Qualification Setup
+
 ![Gemini AI Qualification](screenshots/02-gemini-ai-qualification.png)
 
-### 📈 Google Sheets Results
+### Google Sheets Results
+
 ![Google Sheets Results](screenshots/03-google-sheets-results.png)
 
+## Documentation Reference
 
-Documentation Reference
+- `docs/architecture.md` — System architecture and workflow design.
+- `docs/setup.md` — Installation, credential configuration, and webhook testing instructions.
+- `prompts/lead-analysis-prompt.txt` — Gemini lead qualification prompt.
+- `test-results/day3-lead-tests.md` — Day 3 qualification test results.
+- `test-results/day4-lead-hardening.md` — Day 4 hardening and error-handling test results.
 
-docs/architecture.md — Detailed system architecture and structural design.
+## Business Value
 
-docs/setup.md — Installation, API credentials configuration, and webhook testing.
+- **Faster Lead Screening:** Helps identify potentially valuable leads.
+- **Reduced Manual Work:** Automates initial lead evaluation and data entry.
+- **Centralized Lead Management:** Keeps lead information and AI-generated results organized in Google Sheets.
+- **Improved Error Handling:** Preserves available lead information when AI qualification fails.
 
-prompts/lead-analysis-prompt.txt — Core Gemini AI system instruction prompt template.
+## Future Extensions
 
-test-results/day3-lead-tests.md — Lead qualification test results.
+Potential future improvements include:
 
-Business Value
+- Gmail OAuth configuration and verified email notifications.
+- CRM integrations such as Salesforce and HubSpot.
+- Database logging with PostgreSQL.
+- Multi-channel messaging integrations such as WhatsApp, Telegram, and Slack.
+- AI-assisted personalized follow-up emails.
+- Dedicated HTTP responses for different processing outcomes.
 
-Identify High-Priority Leads Quickly — Helps identify promising business opportunities.
+These are potential extensions and are not claimed as completed features.
 
-Reduce Manual Overhead — Automates lead screening and data transfer tasks.
-
-Centralize Information — Keeps lead information organized in Google Sheets.
-
-Future Extensions
-
-The automation architecture supports potential extensions such as:
-
-CRM platform integrations (Salesforce, HubSpot).
-
-Database logging (PostgreSQL, MongoDB).
-
-Multi-channel messaging (WhatsApp, Telegram, Slack).
-
-AI-driven personalized automated follow-up emails.
-
-License
+## License
 
 This project is intended for portfolio demonstration and educational purposes.
