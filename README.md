@@ -8,46 +8,46 @@ The workflow also includes error handling and an unscored lead fallback to help 
 
 ```text
 Lead
-  |
-  v
+ |
+ v
 Webhook (Header Auth)
-  |
-  v
+ |
+ v
 Input Validation
-  |
-  +---- Invalid Input ----> Respond 400 - Validation Error
-  |
-  v
+ |
+ +---- Invalid Input ----> Respond 400 - Validation Error
+ |
+ v
 Google Gemini AI
-  |
-  +---- AI Error ----------------------+
-  |                                    |
-  v                                    |
-JSON Parsing                           |
-  |                                    |
-  +---- Invalid JSON ------------------+
-  |                                    |
-  v                                    v
+ |
+ +---- AI Error ----------------------+
+ |                                    |
+ v                                    |
+JSON Parsing                          |
+ |                                    |
+ +---- Invalid JSON ------------------+
+ |                                    |
+ v                                    v
 Generate Lead ID                 Build Unscored Lead
-  |                                    |
-  v                                    v
-Google Sheets                    Save Unscored Lead
-  |                                    |
-  v                                    v
-Priority Check                    Log Error
-  |                                    |
-  +---- High                          |
-  |       |                            |
-  |       v                            |
-  |   Gmail Notification              |
-  |   (Deactivated)                   |
-  |       |                            |
-  +---- Medium                         |
-  |       |                            |
-  +---- Low                            |
-          |                            |
-          v                            v
-       Respond 200 - Success <---------+
+ |                                    |
+ v                                    v
+Google Sheets                   Save Unscored Lead
+ |                                    |
+ v                                    v
+Priority Check                  Log Error
+ |                                    |
+ +---- High                          |
+ |       |                            |
+ |       v                            |
+ |   Gmail Notification              |
+ |   (Deactivated)                   |
+ |       |                            |
+ +---- Medium                         |
+ |       |                            |
+ +---- Low                            |
+         |                            |
+         v                            v
+      Respond 200 - Success <---------+
 ```
 
 **Note:** High, Medium, Low, and Unscored processing paths currently use the shared `Respond 200 - Success` node. Invalid input uses a separate HTTP 400 response.
@@ -303,6 +303,7 @@ Potential future improvements include:
 
 - Gmail OAuth configuration and verified email notifications.
 - CRM integrations such as Salesforce and HubSpot.
+- CRM integration (for example HubSpot or Airtable) for lead status tracking, duplicate detection, and follow-up reminders.
 - Database logging with PostgreSQL.
 - Multi-channel messaging integrations such as WhatsApp, Telegram, and Slack.
 - AI-assisted personalized follow-up emails.
