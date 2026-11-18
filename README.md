@@ -301,9 +301,8 @@ AI-Lead-Qualification-Automation/
 
 Potential future improvements include:
 
-- Gmail OAuth configuration and verified email notifications.
-- CRM integrations such as Salesforce and HubSpot.
-- CRM integration (for example HubSpot or Airtable) for lead status tracking, duplicate detection, and follow-up reminders.
+- Complete Gmail OAuth configuration and verify automated email notifications.
+- CRM integrations (e.g., Salesforce, HubSpot, or Airtable) for lead status tracking, duplicate detection, and follow-up reminders.
 - Database logging with PostgreSQL.
 - Multi-channel messaging integrations such as WhatsApp, Telegram, and Slack.
 - AI-assisted personalized follow-up emails.
