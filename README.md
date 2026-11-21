@@ -4,6 +4,12 @@ An AI-powered lead qualification and automation workflow built with **n8n** and 
 
 The workflow also includes error handling and an unscored lead fallback to help prevent lead data from being lost when AI processing or JSON parsing fails.
 
+## Demo Video
+
+Watch the project demonstration:
+
+[AI Lead Qualification Automation Demo](https://youtu.be/fuSs7GuzbzI)
+
 ## Workflow Layout
 
 ```text
